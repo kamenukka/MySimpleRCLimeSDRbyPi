@@ -56,6 +56,16 @@ qDebug()<<dataFortreadTCP.arrayPoints;
 
 }
 
+void AppCore::SendSomething2(QString s)
+{
+qDebug()<<"Tread2Calc";
+dataFortreadTCP.arrayPoints.clear();
+dataFortreadTCP.arrayPoints.append(s);;
+qDebug()<<dataFortreadTCP.arrayPoints;
+
+
+}
+
 void AppCore::client() {
 /* */
 }

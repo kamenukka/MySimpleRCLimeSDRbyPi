@@ -45,3 +45,5 @@ else: unix:!android: target.path = /opt/$${TARGET}/bin
 DISTFILES += \
     main.qml
 
+QMAKE_CXXFLAGS += -Wl,--stack,100000000
+QMAKE_CXXFLAGS += -Wl,--heap,100000000

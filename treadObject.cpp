@@ -3,6 +3,7 @@
 
 #include "tcp/hdr/TcpClient.h"
 #include <stdlib.h>
+#include <math.h>
 
 
 extern QMap<QString, unsigned char *> mapHash;
@@ -56,9 +57,11 @@ void TreadObject::client() {
   while (true)
   {
       if (arrayPoints.length()>0){
-          qDebug()<<array2disp.length();
-
-          client.sendData(hellostring, sizeof(hellostring));
+          qDebug()<<arrayPoints<<arrayPoints.length();
+          std::string str = arrayPoints[0].toString().toStdString();
+          const char* p= str.c_str();
+          int sizeBuff = pow(2,16)-1;
+          client.sendData("privet",  sizeBuff);
           DataBuffer data = client.loadData();
          // std::cout << "Client[ " << data.size << " bytes ]: " << (const char*)data.data_ptr << '\n';
           qDebug()<< "Client[ " << data.size << " bytes ]: " << (const char*)data.data_ptr << '\n';

@@ -16,7 +16,7 @@ Window {
     width: 1080
     height: 720
     visible: true
-    color: "white"
+    color: "#ffffff"
     title: qsTr("RC LimeSDR")
 
 
@@ -46,10 +46,24 @@ Window {
         highlighted: true
         visible: true
         onClicked: {
-                appCore.SendSomething()
+            appCore.SendSomething2(textInput.text)
 
 
-            }
+        }
+    }
+
+    TextInput {
+        id: textInput
+        x: 150
+        y: buttonConnect.y+buttonConnect.height+20
+        width: 80
+        height: 20
+        text: "test message"
+        font.pixelSize: 12
+        wrapMode: Text.WordWrap
+        persistentSelection: false
+        renderType: Text.NativeRendering
+        clip: false
     }
 
 }

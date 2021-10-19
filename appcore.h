@@ -30,6 +30,7 @@ public slots:
     void client();
     void TCPThread();
     void SendSomething();
+    void SendSomething2(QString);
 
 
 private:
