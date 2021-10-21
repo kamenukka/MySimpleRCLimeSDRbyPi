@@ -33,6 +33,8 @@ public:
     QString message_2() const;
     QVariantList array2disp;
     QVariantList arrayPoints;
+    bool flagReady = false;
+    bool flagTCPIsActive = false;
     QMap<QString, unsigned char *> tilesMap;
     QMap<QString, bool> tilesExist;
     QMutex mut;
@@ -44,7 +46,9 @@ signals:
     void runningChanged(bool running);
     void messageChanged(QString message);
     void message_2Changed(QString message_2);
-    void sendMessage(QVariantList array2disp);
+    void sendMessage();
+    void endOfSend();
+
     void sendMessageProc(int counter, int Number, double* arr);
 
 

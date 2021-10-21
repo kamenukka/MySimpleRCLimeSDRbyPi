@@ -66,9 +66,9 @@ DataBuffer TcpClient::loadData() {
 
 bool TcpClient::sendData(const void* buffer, const size_t size) const {
   void* send_buffer = malloc(size + sizeof (int));
-//  memset(reinterpret_cast<char*>(send_buffer) + sizeof(int), 0, size);
+  memset(reinterpret_cast<char*>(send_buffer) + sizeof(int), 0, size);
+  // TODO: что-то здесь не чисто в мемкопи (ибо больше 2 мб траблы случаются) но пока не надо
   memcpy(reinterpret_cast<char*>(send_buffer) + sizeof(int), buffer, size);
-
   *reinterpret_cast<int*>(send_buffer) = size;
   if(send(client_socket, reinterpret_cast<char*>(send_buffer), size + sizeof(int), 0) < 0) return false;
   free(send_buffer);

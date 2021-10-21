@@ -66,4 +66,20 @@ Window {
         clip: false
     }
 
+    Button {
+        id: buttonDisconnect
+        x: 20
+        y: buttonSend.y+buttonSend.height+20
+        text: qsTr("отсоединиться")
+        checkable: false
+        autoRepeat: false
+        highlighted: true
+        visible: true
+        onClicked: {
+            appCore.TCPstopTCP()
+
+
+        }
+    }
+
 }

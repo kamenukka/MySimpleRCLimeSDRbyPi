@@ -29,8 +29,10 @@ public slots:
     void init();
     void client();
     void TCPThread();
+    void TCPstopTCP();
     void SendSomething();
     void SendSomething2(QString);
+    void getSomeFlag();
 
 
 private:
@@ -45,14 +47,7 @@ private:
     QVariantList ModeNames;
     QVariantList ModeValues;
     bool FlagInit;
-    double antennaHeigthTx;
-    double antennaHeigthRx;
-    double p;
-    double Freq;
-    double Ku1;
-    double Ku2;
-    double Pow;
-    double Sens;
+    bool flagToSend = false;
     int LenP = 0;
     int counter = 0;
     int counterFinishedWorkers = 0;
