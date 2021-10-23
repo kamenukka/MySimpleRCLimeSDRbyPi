@@ -19,6 +19,7 @@ class TreadObject : public QObject
     bool m_running;
     QString m_message;
     QString m_message_2;
+
     int count;  // Счётчик, по которому будем ориентироваться на то,
                 // что потоки выполняются и работают
 
@@ -40,14 +41,25 @@ public:
     QMutex mut;
     int counter;
     int Number = -10;
+    const char* stringFromServer;
+    QString IP;
+    QString port;
+    QString FilePath;
+
+
+
 
 signals:
     void finished();    // Сигнал, по которому будем завершать поток, после завершения метода run
     void runningChanged(bool running);
     void messageChanged(QString message);
     void message_2Changed(QString message_2);
-    void sendMessage();
+    void sendMessage(QVariantList);
     void endOfSend();
+    void sendMessageFromServer();
+    void sendMessageErrorFromServer();
+
+
 
     void sendMessageProc(int counter, int Number, double* arr);
 

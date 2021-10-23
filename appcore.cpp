@@ -22,8 +22,11 @@ AppCore::AppCore(QObject *parent) : QObject(parent)
 
     connect(&TCPthread, &QThread::started, &dataFortreadTCP, &TreadObject::run);
     connect(&dataFortreadTCP, &TreadObject::finished, &TCPthread, &QThread::terminate);
-    //connect(&dataFortreadTCP, &TreadObject::sendMessage,  this, &AppCore::SendSomething, Qt::DirectConnection);
+    //connect(&dataFortreadTCP, SIGNAL(sendMessage(QVariantList)),  this, SLOT(SendSomething(QVariantList)), Qt::DirectConnection);
     connect(&dataFortreadTCP,  &TreadObject::endOfSend,  this, &AppCore::getSomeFlag, Qt::DirectConnection);
+    connect(&dataFortreadTCP,  &TreadObject::sendMessageFromServer,  this, &AppCore::SendSomething, Qt::DirectConnection);
+    connect(&dataFortreadTCP,  &TreadObject::sendMessageErrorFromServer,  this, &AppCore::sendMessages, Qt::DirectConnection);
+
     dataFortreadTCP.moveToThread(&TCPthread);    // Передаём объекты в соответствующие потоки
 
 }
@@ -33,19 +36,23 @@ AppCore::AppCore(QObject *parent) : QObject(parent)
 void AppCore::init()
 {
     array2display.clear();
+    FlagInit = true;
+    Res = 0;
     emit sendToQml(FlagInit,Res,array2display);
 }
 
 
-void AppCore::TCPThread()
+void AppCore::tCPThread(QString IP,QString port)
 {
+    dataFortreadTCP.IP = IP;
+    dataFortreadTCP.port = port;
     TCPthread.start();
     dataFortreadTCP.flagTCPIsActive = true;
 
 
 }
 
-void AppCore::TCPstopTCP()
+void AppCore::tCPstopTCP()
 {
     dataFortreadTCP.flagTCPIsActive = false;
     TCPthread.terminate();
@@ -60,20 +67,27 @@ void  AppCore::getSomeFlag()
 
 void AppCore::SendSomething()
 {
-qDebug()<<"Tread2Calc";
-dataFortreadTCP.arrayPoints.clear();
-dataFortreadTCP.arrayPoints.append(1.0);
-dataFortreadTCP.arrayPoints.append(2.0);
-dataFortreadTCP.arrayPoints.append("3.0");
-qDebug()<<dataFortreadTCP.arrayPoints;
+//qDebug()<<"Trhtead send"<<dataFortreadTCP.stringFromServer;
+array2display.clear();
+array2display.append(dataFortreadTCP.stringFromServer);
+FlagInit = false;
+Res = 1;
+emit sendToQml(FlagInit,Res,array2display);
+}
 
+void AppCore::sendMessages()
+{
+ if (dataFortreadTCP.flagTCPIsActive)
+    emit sendToQmlMsg(true);
+ else
+     emit sendToQmlMsg(false);
 
 }
 
-void AppCore::SendSomething2(QString s)
+void AppCore::sendSomething2(QString fileName)
 {
 dataFortreadTCP.arrayPoints.clear();
-QString fileName = "D:\\IQ.txt";
+qDebug()<<fileName;
 QString line;
 float tmpVal;
 float tmpMax = -1e12;
@@ -97,26 +111,35 @@ if (inputFile.open(QIODevice::ReadOnly))
    }
    inputFile.close();
 }
-dataFortreadTCP.arrayPoints.append(1.0);
-dataFortreadTCP.arrayPoints.append(1.0);
-dataFortreadTCP.arrayPoints.append(0.0);
-dataFortreadTCP.arrayPoints.append(0.0);
-dataFortreadTCP.arrayPoints.append(1.0);
-dataFortreadTCP.arrayPoints.append(1.0);
-dataFortreadTCP.arrayPoints.append(0.7);
+dataFortreadTCP.arrayPoints.append(float(1.0));
+dataFortreadTCP.arrayPoints.append(float(1.0));
+dataFortreadTCP.arrayPoints.append(float(0.0));
+dataFortreadTCP.arrayPoints.append(float(0.0));
+dataFortreadTCP.arrayPoints.append(float(1.0));
+dataFortreadTCP.arrayPoints.append(float(1.0));
+dataFortreadTCP.arrayPoints.append(float(0.7));
 dataFortreadTCP.arrayPoints.append(array2display.length());
 
 
 
+//for (int i=0;i<array2display.length();i++)
+int lenTrash = 0;
 for (int i=0;i<array2display.length();i++)
+
 {
   tmpVal = array2display[i].toFloat();
-  dataFortreadTCP.arrayPoints.append((tmpVal*32767/tmpMax));
+  if ((i%(1024/4)==0)&&(i>0))
+  {
+      for (int j=0;j<lenTrash;j++)
+        dataFortreadTCP.arrayPoints.append(0);
+  }
+  dataFortreadTCP.arrayPoints.append((tmpVal)); //*32767/tmpMax
+//  dataFortreadTCP.arrayPoints.append(float(i));
+
 }
 dataFortreadTCP.flagReady = true;
 
 }
-qDebug()<<"Tread2Calc";
 }
 
 void AppCore::client() {

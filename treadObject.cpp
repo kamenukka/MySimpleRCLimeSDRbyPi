@@ -37,10 +37,10 @@ int ipStringToNumber (const char*       pDottedQuad,
            && (byte0 < 256)
          )
       {
-         *pIpAddr  =   (byte3 << 24)
-                     + (byte2 << 16)
-                     + (byte1 << 8)
-                     +  byte0;
+         *pIpAddr  =   (byte0 << 24)
+                     + (byte1 << 16)
+                     + (byte2 << 8)
+                     +  byte3;
 
          return 1;
       }
@@ -94,6 +94,8 @@ float bytesToFloat(uchar b0, uchar b1, uchar b2, uchar b3)
     return output;
 }
 
+
+
 uint8_t * float2Bytes(float val){
   // Create union of shared memory space
     uint8_t      bytes[sizeof(float)];
@@ -112,27 +114,46 @@ void TreadObject::run()
 void TreadObject::client() {
   using namespace std::chrono_literals;
   TcpClient client;
-  const void* hellostring = "QWERTY";
   uint32_t HOST_IP;
-  QString adr = "127.0.0.1";
-  std::string str = adr.toStdString();
+  std::string str = IP.toStdString();
   const char* p = str.c_str();
   ipStringToNumber(p,&HOST_IP);
 //  if (inet_ntop(AF_INET, &HOST_IP, "169.254.183.65", INET6_ADDRSTRLEN) == NULL) {
 //      perror("inet_ntop");
 //      exit(EXIT_FAILURE);
 //  }
+
+  qDebug()<<HOST_IP<<port.toInt();
+
+
   TcpClient::status status;
   QString my_qstring  = "Hello server";
   std::string str_ = my_qstring.toStdString();
   const char* tmp = str_.c_str();
-  status = client.connectTo(0x41B7FEA9, 4002);
+  status = client.connectTo(HOST_IP, port.toInt());
+  /*connected = 0,
+  err_socket_init = 1,
+  err_socket_bind = 2,
+  err_socket_connect = 3,
+  disconnected = 4*/
+  if (int(status))
+  {
+      flagTCPIsActive = false;
+  }
+  emit sendMessageErrorFromServer();
+
+
   byte* bytes_array;
   uint8_t      bytes[sizeof(float)];
   float tmpValue;
-  qDebug()<<sizeof(char)<<sizeof(short)<<sizeof(char)<<sizeof(int)<<sizeof(double)<<sizeof(float)<<sizeof(void);
   while (flagTCPIsActive)
   {
+      status = client.getStatus();
+      if (int(status))
+      {
+          flagTCPIsActive = false;
+          emit sendMessageErrorFromServer();
+      }
       if (flagReady){
           int cntr=0;
           int sizeOfTransferBuffer = arrayPoints.length()*sizeof(float);
@@ -142,21 +163,10 @@ void TreadObject::client() {
           for (int j=0;j<arrayPoints.length();j++)
           {
               *(float*)(bytes) = arrayPoints[j].toFloat();  // convert float to bytes
-              if (j==0)
-                  qDebug()<<bytes[0]<<bytes[1]<<bytes[2]<<bytes[3]<<arrayPoints[j].toFloat();
               for (int k=0;k<4;k++)
                   arrayToTransfer[j*sizeof(float)+k]=bytes[k];
           }
-//          arrayToTransfer[0]=1;
-//          arrayToTransfer[1]=1;
-//          arrayToTransfer[2]=1;
-//          arrayToTransfer[3]=0;
-//          arrayToTransfer[4]=0;
-//          arrayToTransfer[5]=1;
-//          arrayToTransfer[6]=1;
-//          arrayToTransfer[7]=0;
-
-          qDebug()<<"sizeOfTransferBuffer"<<sizeOfTransferBuffer<<"arrayPoints.length()"<<arrayPoints.length();
+          //qDebug()<<"sizeOfTransferBuffer"<<sizeOfTransferBuffer<<"arrayPoints.length()"<<arrayPoints.length();
           arrayPoints.clear();
           cntr = ((sizeOfTransferBuffer%TRANSFER_BLOCK)!=0)?(int(sizeOfTransferBuffer/TRANSFER_BLOCK)+1):(int(sizeOfTransferBuffer/TRANSFER_BLOCK));
 
@@ -166,14 +176,14 @@ void TreadObject::client() {
               my_qstring  = QString::number(i);
               str_ = my_qstring.toStdString();
               tmp = str_.c_str();
-//              for (int j =0;j<TRANSFER_BLOCK/sizeof(float);j++)
-//                  qDebug()<<i<<j<<float(*(arrayToTransfer+TRANSFER_BLOCK*i+j*sizeof(float)));
               client.sendData(arrayToTransfer +TRANSFER_BLOCK*i, TRANSFER_BLOCK);
           }
 
           DataBuffer data = client.loadData();
          // std::cout << "Client[ " << data.size << " bytes ]: " << (const char*)data.data_ptr << '\n';
-          qDebug()<< "Client[ " << data.size << " bytes ]: " << (const char*)data.data_ptr << '\n';
+          //qDebug()<< "Client[ " << data.size << " bytes ]: " << (const char*)data.data_ptr << '\n';
+          stringFromServer = (const char*)data.data_ptr;
+          emit sendMessageFromServer();
           flagReady = false;
           emit endOfSend();
         }
@@ -181,6 +191,8 @@ void TreadObject::client() {
 
   //std::this_thread::sleep_for(5s);
   client.disconnect();
+  emit sendMessageErrorFromServer();
+
  // std::clog << "Socket closed!\n";
 }
 

@@ -8,7 +8,7 @@
 #include <QThread>
 #include <QSharedPointer>
 #include <QMap>
-
+#include <QDir>
 
 
 class AppCore : public QObject
@@ -21,17 +21,18 @@ public:
 signals:
     // Сигнал для передачи данных в qml-интерфейс
     void sendToQml(bool FlagInit,float Res, QVariantList array2display);
-    void sendToMap(float Res,QVariantList array2displayMap);
+    void sendToQmlMsg(bool flagConnect);
     void  sendCounterToQml(int counter);
 
 
 public slots:
     void init();
     void client();
-    void TCPThread();
-    void TCPstopTCP();
+    void tCPThread(QString,QString);
+    void tCPstopTCP();
     void SendSomething();
-    void SendSomething2(QString);
+    void sendMessages();
+    void sendSomething2(QString);
     void getSomeFlag();
 
 

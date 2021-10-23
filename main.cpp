@@ -20,6 +20,7 @@ int main(int argc, char *argv[])
      * а также определяем имя, по которому будет происходить соединение
      * */
     context->setContextProperty("appCore", &appCore);
+    engine.rootContext()->setContextProperty("CurDirPath",QString(QDir::currentPath()));
 
     // И загружаем в него исходники qml
     engine.load(QUrl(QStringLiteral("qrc:/main.qml")));

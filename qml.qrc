@@ -1,5 +1,8 @@
 <RCC>
     <qresource prefix="/">
         <file>main.qml</file>
+		<file>src/settings.png</file>
+        <file>src/help.png</file>
+
     </qresource>
 </RCC>
