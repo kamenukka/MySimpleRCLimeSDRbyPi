@@ -19,7 +19,7 @@ Window {
     color: "#ffffff"
     title: qsTr("RC LimeSDR")
 
-    Connections {
+   Connections {
         target: appCore // Указываем целевое соединение
         onSendToQml: {
             if (FlagInit)
@@ -28,9 +28,9 @@ Window {
             }
             else
             {
-                /*if (Res>0)
-                    labelStatus.text = "Успешно отправлена команда";*/
-                 textAreaLog.append(array2display[0])
+                //if (Res>0)
+                    //labelStatus.text = "Успешно отправлена команда";
+                 textAreaLog.append(Qt.formatTime(new Date(), "hh:mm:ss") +": " + array2display[0])
             }
         }
         onSendToQmlMsg:
@@ -50,10 +50,79 @@ Window {
 
 
             }
-
-
+        }
+        onSpecValueChanged: {
+            lineSeries1.clear();
+            var i
+            console.log(arr2spec.length)
+            for (i=0;i<arr2spec.length;i++)
+            {
+            lineSeries1.append(i,arr2spec[i])
+            }
+//            axisX.min = lineSeries1.at(0).x
+            axisX.max = arr2spec.length;
         }
     }
+
+   Window
+   {
+      id: plotSpec
+      flags:  Qt.Window //| Qt.WindowStaysOnBottomHint
+      color: "white"
+      title: qsTr(qsTr("# SPEC"))
+       width: 400
+       height: 400
+       visible: checkBoxshowSpec.checked?true:false
+       onVisibilityChanged: {
+           if (checkBoxshowSpec.checked)
+               if (visible)
+                   checkBoxshowSpec.checked = true
+           else
+                   checkBoxshowSpec.checked = false
+
+       }
+
+       ChartView {
+           id: chartView
+           width: parent.width
+           height: parent.height
+           anchors.fill: parent
+           animationOptions: ChartView.NoAnimation
+           antialiasing: true
+           backgroundColor: "#1f1f1f"
+
+           ValueAxis {
+               id: axisY1
+               min: -100
+               max: 10
+               gridVisible: false
+               color: "#ffffff"
+               labelsColor: "#ffffff"
+               labelFormat: "%.0f"
+           }
+
+           ValueAxis {
+               id: axisX
+               min: 0
+               max: 8192
+               gridVisible: false
+               color: "#ffffff"
+               labelsColor: "#ffffff"
+               labelFormat: "%.0f"
+               tickCount: 5
+           }
+
+           LineSeries {
+               id: lineSeries1
+               name: "signal 1"
+               color: "white"
+               axisX: axisX
+               axisY: axisY1
+           }
+       }
+
+   }
+
 
     FileDialog {
         id: fileDialog
@@ -113,7 +182,12 @@ Window {
         highlighted: true
         visible: true
         onClicked: {
-            appCore.sendSomething2(textInputFilePath.text)
+            appCore.sendSomething2(textInputFilePath.text, checkBoxDefaultOutput.checked?qsTr(""):textInputFilePathOut.text, radioButtonTrans.checked?1:0,spinBoxFreq.value,
+                                   spinBoxFreqFd.value,sliderNormalizedGain.value, spinBoxOverSampling.value, radioButton1Chan.checked?0:1,
+                                   radioButton1ChanRec.checked?0:1,spinBoxTimeToPlay.value, spinBoxOutputSize.value,
+                                   spinBoxtx_streamfifoSize.value, spinBoxtx_streamthroughputVsLatency.value,
+                                   spinBoxrx_streamfifoSize.value, spinBoxrx_streamthroughputVsLatency.value,
+                                   radioButtonFMT32.cheked?"float32":"int12")
 
 
         }
@@ -160,8 +234,10 @@ Window {
         y: 238
         width: 139
         height: 27
-        value: 0.7
-        stepSize: 0.05
+        value: 50
+        stepSize: 1
+        from: 0
+        to: 73
         ToolTip.visible: hovered
         ToolTip.text: Math.floor(value*100)/100
     }
@@ -262,7 +338,7 @@ Window {
         text: qsTr("1")
         checked: true
         font.pointSize: 9
-    }
+        }
 
     RadioButton {
         id: radioButton2Chan
@@ -360,14 +436,16 @@ Window {
             id: flickable
             anchors.fill: parent
             anchors.leftMargin: 0
-
+            boundsMovement: Flickable.StopAtBounds
+            boundsBehavior: Flickable.DragAndOvershootBounds
             TextArea.flickable: TextArea {
                 id: textAreaLog
                 x: 0
                 y: 0
                 width: 406
                 height: 461
-                text: qsTr("")
+                text:  "=======================================================\n"+Qt.formatTime(new Date(), "hh:mm:ss") +": " + "Старт работы программы"
+                readOnly: false
                 wrapMode: TextArea.Wrap
             }
 
@@ -536,6 +614,7 @@ Window {
         id: checkBoxDefaultOutput
         x: 214
         y: 407
+        checked: true
         width: 98
         height: 17
         text: qsTr("default")
@@ -636,12 +715,12 @@ Window {
     }
 
     SpinBox {
-        id: spinBoxFreq3
+        id: spinBoxTimeToPlay
         x: 619
         y: 79
         width: 160
         height: 28
-        value: 50
+        value: 10
         editable: true
         font.pointSize: 9
         stepSize: 1
@@ -724,6 +803,66 @@ Window {
         wrapMode: Text.WordWrap
         font.pointSize: 9
     }
+
+    Column {
+        x: 925
+        y: 271
+        visible: checkBoxAddSettings.checked?true:false
+
+        RadioButton {
+            id: radioButtonFMT32
+            x: 34
+            y: 352
+            text: qsTr("LMS_FMT_F32")
+            visible: checkBoxAddSettings.checked?true:false
+
+            checked: true
+            font.pointSize: 9
+        }
+
+        RadioButton {
+            id: radioButtonFMTI12
+            x: 34
+            y: 398
+            text: qsTr("LMS_FMT_I12")
+            visible: checkBoxAddSettings.checked?true:false
+
+            font.pointSize: 9
+        }
+    }
+
+    Label {
+        id: label10
+        x: 902
+        y: 279
+        width: 47
+        height: 64
+        text: qsTr("Формат данных")
+        visible: checkBoxAddSettings.checked?true:false
+
+        horizontalAlignment: Text.AlignHCenter
+        verticalAlignment: Text.AlignVCenter
+        wrapMode: Text.WordWrap
+        font.pointSize: 9
+    }
+
+    CheckBox {
+        id: checkBoxshowSpec
+        x: 503
+        y: 41
+        width: 153
+        height: 17
+        text: qsTr("спектр")
+        checked: false
+        display: AbstractButton.TextBesideIcon
+        font.pointSize: 6
+        onClicked:
+        {
+                appCore.flagSpecSet(checked)
+        }
+    }
 }
+
+
 
 

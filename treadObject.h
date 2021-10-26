@@ -4,6 +4,7 @@
 #include <QObject>
 #include <QVariantList>
 #include <QMutex>
+#include "gnuPlotPipe.h"
 
 
 class TreadObject : public QObject
@@ -34,6 +35,8 @@ public:
     QString message_2() const;
     QVariantList array2disp;
     QVariantList arrayPoints;
+    QVariantList arrayPointsOfSpec;
+
     bool flagReady = false;
     bool flagTCPIsActive = false;
     QMap<QString, unsigned char *> tilesMap;
@@ -45,6 +48,11 @@ public:
     QString IP;
     QString port;
     QString FilePath;
+    bool isServer = false;
+    bool flagInitServer = false;
+    int samplesCountToRecieve;
+    QString OutName;
+    bool useDefaultOutName = false;
 
 
 
@@ -58,6 +66,7 @@ signals:
     void endOfSend();
     void sendMessageFromServer();
     void sendMessageErrorFromServer();
+    void sendMessageSpec();
 
 
 

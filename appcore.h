@@ -23,6 +23,9 @@ signals:
     void sendToQml(bool FlagInit,float Res, QVariantList array2display);
     void sendToQmlMsg(bool flagConnect);
     void  sendCounterToQml(int counter);
+    void  specValueChanged(QVariantList arr2spec);
+
+
 
 
 public slots:
@@ -32,8 +35,15 @@ public slots:
     void tCPstopTCP();
     void SendSomething();
     void sendMessages();
-    void sendSomething2(QString);
+    void sendSpec();
+    void sendSomething2(QString, QString,int, int,
+                        int, int, int, int,
+                        int, int, int,
+                        int, int,
+                        int, int,
+                        QString);
     void getSomeFlag();
+    void flagSpecSet(bool);
 
 
 private:
@@ -47,11 +57,13 @@ private:
     QVariantList array2displayMap;
     QVariantList ModeNames;
     QVariantList ModeValues;
+    QVariantList arr2spec;
     bool FlagInit;
     bool flagToSend = false;
     int LenP = 0;
     int counter = 0;
     int counterFinishedWorkers = 0;
+    bool flagSpec = false;
     struct Point
     {
         QString Name;
@@ -66,6 +78,8 @@ private:
     TreadObject dataFortreadTCP;
     QThread TCPthread;
 
+    TreadObject dataFortreadTCPServer ;
+    QThread TCPthreadServer;
 
 
     TreadObject * ArrayTreadForCalculate = new TreadObject [NumOfThreads];

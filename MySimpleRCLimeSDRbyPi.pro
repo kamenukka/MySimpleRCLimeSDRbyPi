@@ -20,12 +20,17 @@ QMAKE_LFLAGS_EXCEPTIONS_ON = -mthreads
 
 SOURCES += main.cpp \
         appcore.cpp \
+        myFunc/fft.cpp \
         tcp/src/TcpServer.cpp \
         tcp/src/TcpClient.cpp \
         treadObject.cpp
 
 HEADERS += \
         appcore.h \
+        gnuPlotPipe.h \
+        myFunc/complex.h \
+        myFunc/fft.h \
+        myFunc/myFunc.h \
         tcp/hdr/TcpServer.h \
         tcp/hdr/TcpClient.h \
         tcp/hdr/general.h \
@@ -43,6 +48,7 @@ else: unix:!android: target.path = /opt/$${TARGET}/bin
 !isEmpty(target.path): INSTALLS += target
 
 DISTFILES += \
+    PlotSpec.qml \
     main.qml
 
 QMAKE_CXXFLAGS += -Wl,--stack,100000000

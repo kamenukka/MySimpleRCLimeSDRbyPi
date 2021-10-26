@@ -3,9 +3,17 @@
 #include <QThread>
 
 #include "tcp/hdr/TcpClient.h"
+#include "tcp/hdr/TcpServer.h"
+#include <iostream>
+#include <mutex>
 #include <stdlib.h>
 #include <math.h>
 #include <stdio.h>
+#include <QFile>
+#include <QDate>
+#include <QTime>
+#include <QDir>
+
 typedef unsigned char uchar;
 
 #define TRANSFER_BLOCK 1024
@@ -103,16 +111,69 @@ uint8_t * float2Bytes(float val){
     return bytes;
 }
 
+//Parse ip to std::string
+std::string getHostStr(const TcpServer::Client& client) {
+    uint32_t ip = client.getHost ();
+    return std::string() + std::to_string(int(reinterpret_cast<char*>(&ip)[0])) + '.' +
+            std::to_string(int(reinterpret_cast<char*>(&ip)[1])) + '.' +
+            std::to_string(int(reinterpret_cast<char*>(&ip)[2])) + '.' +
+            std::to_string(int(reinterpret_cast<char*>(&ip)[3])) + ':' +
+            std::to_string( client.getPort ());
+}
+
+
 
 // Самый важный метод, в котором будет выполняться "полезная" работа объекта
 void TreadObject::run()
-{
-        client();
+{   
+    if (!isServer)
+    {
+    client();
+    }
+    else
+    {
+        if (!flagInitServer)
+        {
+            TcpServer server( 4002,
+
+            [](DataBuffer data, TcpServer::Client& client){ // Data handler
+              std::cout << "Client "<<getHostStr(client)<<" send data [ " << data.size << " bytes ]: " << (char*)data.data_ptr << '\n';
+//              client.sendData("Hello, client!", sizeof("Hello, client!"));
+            },
+
+            [](TcpServer::Client& client) { // Connect handler
+              //std::cout << "Client " << getHostStr(client) << " connected\n";
+            },
+
+
+            [](TcpServer::Client& client) { // Disconnect handler
+              //std::cout << "Client " << getHostStr(client) << " disconnected\n";
+            },
+
+            {1, 1, 1} // Keep alive{idle:1s, interval: 1s, pk_count: 1}
+            );
+            //Start server
+            if(server.start() == TcpServer::status::up) {
+                std::cout<<"Server listen on port:"<<server.getPort()<<std::endl;
+                server.joinLoop();
+            } else {
+                std::cout<<"Server start error! Error code:"<< int(server.getStatus()) <<std::endl;
+            }
+            flagInitServer = false;
+        }
+
+    }
 }
+
+int16_t rec_buffer[255999996];
+
 
 //g++-10.1  -Wall -o "%e" "%f"  -I/home/pi/TcpServer-master/tcp/hdr -L/home/pi/TcpServer-master -o main -ltcp -lpthread -std=c++17
 void TreadObject::client() {
   using namespace std::chrono_literals;
+
+
+
   TcpClient client;
   uint32_t HOST_IP;
   std::string str = IP.toStdString();
@@ -154,6 +215,10 @@ void TreadObject::client() {
           flagTCPIsActive = false;
           emit sendMessageErrorFromServer();
       }
+
+
+
+
       if (flagReady){
           int cntr=0;
           int sizeOfTransferBuffer = arrayPoints.length()*sizeof(float);
@@ -180,13 +245,101 @@ void TreadObject::client() {
           }
 
           DataBuffer data = client.loadData();
-         // std::cout << "Client[ " << data.size << " bytes ]: " << (const char*)data.data_ptr << '\n';
-          //qDebug()<< "Client[ " << data.size << " bytes ]: " << (const char*)data.data_ptr << '\n';
           stringFromServer = (const char*)data.data_ptr;
           emit sendMessageFromServer();
+
+          DataBuffer data_ = client.loadData();
+          stringFromServer = (const char*)data_.data_ptr;
+          emit sendMessageFromServer();
+
+            QString str2reg = QString(stringFromServer);
+            QRegExp rx("Server Up with send Data (\\d+)(\\s*) bloks");
+            int pos = rx.indexIn(str2reg);
+            QStringList list = rx.capturedTexts();
+             int NumOfBlocks = 0;
+            if (!list.isEmpty())
+            {
+                NumOfBlocks = list[1].toInt();
+                qDebug()<<list<<list[1]<<NumOfBlocks;
+            }
+
+          int cntrFloatSymbols = 0;
+          for (int cntrLoopRec = 0;cntrLoopRec<NumOfBlocks;cntrLoopRec++)
+          {
+          DataBuffer data__ = client.loadData();
+          //qDebug()<<"data__"<<data__.size<<"bytes";
+          if (data__.size)
+          {
+          for (int k=0;k<1024/sizeof(int16_t);k++)
+          {
+              if (cntrFloatSymbols<samplesCountToRecieve*2)
+                rec_buffer[cntrFloatSymbols++] = *(int16_t*)(data__.data_ptr+k*sizeof(int16_t));
+             //qDebug()<<cntrFloatSymbols-1<<":"<< rec_buffer[cntrFloatSymbols-1];
+                        for (int k=0;k<1e4;k++)
+                        {
+                          asm("nop"); // TODO: убрать не костыль а КОСТЫЛИЩЕ (надобно сделать неблочащие друг друга события
+                        }
+
+          }
+//          for (int k=0;k<1e3;k++)
+//          {
+//            asm("nop");
+//          }
+          }
+          qDebug()<<"Recieve data block "<<cntrLoopRec;
+          }
+
+          if (NumOfBlocks)
+          {
+              stringFromServer = "!Принял файл, записанный Lime";
+              emit sendMessageFromServer();
+//              QString OutName;
+//              bool useDefaultOutName = false;
+               QString filenameOutD;
+              if (useDefaultOutName){
+                  QDate cd = QDate::currentDate();
+                  QTime ct = QTime::currentTime();
+                  QDir dir(QDir::currentPath() + "/res/");
+                  if (!dir.exists()){
+                      dir.mkdir(".");
+                  }
+                filenameOutD = QDir::currentPath() + "/res/DataOutput-" +cd.toString("dd-MM-yyyy") +"-" + ct.toString("HH-mm-ss") +  ".txt";
+                qDebug()<<filenameOutD;
+               }
+               else {
+                    filenameOutD = OutName;
+               }
+              QFile file(filenameOutD);
+              if (file.open(QIODevice::ReadWrite)) {
+                  QTextStream stream(&file);
+                  for (int k=0;k<samplesCountToRecieve*2;k++)
+                  {
+                  stream << rec_buffer[k] << endl;
+                  }
+                  stringFromServer = "!Записал файл на диск";
+                  emit sendMessageFromServer();
+
+              }
+
+                arrayPointsOfSpec.clear();
+                for (int k=0;k<samplesCountToRecieve;k++)
+                {
+                    arrayPointsOfSpec.append(rec_buffer[k*2]);
+                }
+                emit sendMessageSpec();
+
+          }
+          else
+          {
+              DataBuffer data_ = client.loadData();
+              stringFromServer = (const char*)data_.data_ptr;
+              emit sendMessageFromServer();
+          }
           flagReady = false;
           emit endOfSend();
-        }
+
+      }
+
   }
 
   //std::this_thread::sleep_for(5s);
