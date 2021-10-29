@@ -7,20 +7,68 @@ import QtCharts 2.0
 
 import QtQuick.Shapes 1.11
 
+import QtQuick.Controls.Material 2.12
 
 
-Window {
+
+ApplicationWindow {
+
     id: window
-    flags:  Qt.Window
-//    modality: Qt.WindowModal
+    Material.theme: Material.Light
+    Material.accent: Material.BlueGrey
     width: checkBoxAddSettings.checked?1200:800
     height: 600
     visible: true
-    color: "#ffffff"
     title: qsTr("RC LimeSDR")
+    onClosing:
+    {
+        appCore.writeSettings(textInputIP.text, textInputPort.text,spinBoxFreq.value,spinBoxFreqFd.value,
+                              radioButtonTrans.checked?qsTr("TX"):qsTr("RX"), sliderNormalizedGain.value,
+                              spinBoxOverSampling.value,  radioButton1Chan.checked?0:1, radioButton1ChanRec.checked?0:1,
+                              textInputFilePath.text, textInputFilePathOut.text, spinBoxTimeToPlay.value,
+                              spinBoxTimesToRec.value, spinBoxOutputSize.value,
+                              spinBoxtx_streamfifoSize.value, spinBoxtx_streamthroughputVsLatency.value,
+                              spinBoxrx_streamfifoSize.value, spinBoxrx_streamthroughputVsLatency.value,
+                              radioButtonFMT32.cheked?"float32":"int12", (window.Material.theme === Material.Light)?"Light":"Dark")
+    }
+
+    property var cntrRec: 0
+    property var defaltFolderUrl: CurDirPath
 
    Connections {
         target: appCore // Указываем целевое соединение
+        onSendToQmlSettings:{
+
+            console.log(IP, port, freq, Fd,   mode, Gain, oversampling, NumChanTx,
+                        NumChanRx,  nameIn,  nameOut,  SecondsToPlay,  NumOfCyclesRec,  LenArrayToRec,
+                        txfifosize,  txThVslat,  rxfifosize,  rxThVslat, fmt, theme,(theme==qsTr("Dark")))
+              textInputIP.text = IP
+              textInputPort.text = port
+              spinBoxFreq.value = freq
+              spinBoxFreqFd.value = Fd
+              radioButtonTrans.checked = (mode==qsTr("TX"))?true:false
+              radioButtonRec.checked = (mode==qsTr("RX"))?true:false
+              sliderNormalizedGain.value = Gain
+              spinBoxOverSampling.value = oversampling
+              radioButton1Chan.checked = (NumChanTx==0)?true:false
+              radioButton2Chan.checked = (NumChanTx==1)?true:false
+              radioButton1ChanRec.checked = (NumChanRx==0)?true:false
+              radioButton2ChanRec.checked = (NumChanRx==1)?true:false
+              textInputFilePath.text = nameIn
+              textInputFilePathOut.text = nameOut
+              spinBoxTimeToPlay.value = SecondsToPlay
+              spinBoxTimesToRec.value = NumOfCyclesRec
+              spinBoxOutputSize.value = LenArrayToRec
+              spinBoxtx_streamfifoSize.value = txfifosize
+              spinBoxtx_streamthroughputVsLatency.value = txThVslat
+              spinBoxrx_streamfifoSize.value = rxfifosize
+              spinBoxrx_streamthroughputVsLatency.value = rxThVslat
+              radioButtonFMT32.checked = (fmt==qsTr("float32"))?true:false
+              window.Material.theme = (theme==qsTr("Dark"))?Material.Dark:Material.Light
+              window.Material.accent = (theme==qsTr("Dark"))?Material.Orange:Material.BlueGrey
+              radioButtonDark.checked = (theme==qsTr("Dark"))?true:false
+        }
+
         onSendToQml: {
             if (FlagInit)
             {
@@ -28,24 +76,38 @@ Window {
             }
             else
             {
-                //if (Res>0)
-                    //labelStatus.text = "Успешно отправлена команда";
-                 textAreaLog.append(Qt.formatTime(new Date(), "hh:mm:ss") +": " + array2display[0])
-            }
+                if (array2display[0][0]=="!")
+                {
+                 if (array2display[0][1]=="!")
+                    {
+                     var tmp = array2display[0].replace("!!","")
+
+                     textAreaLog.append(Qt.formatTime(new Date(), "hh:mm:ss") +": " + tmp)
+                    }
+                }
+                            }
         }
+        onSendToDopQML: {
+
+                 textAreaLogDop.append(Qt.formatTime(new Date(), "hh:mm:ss") +": " + stringFromServer)
+
+        }
+
         onSendToQmlMsg:
         {
             if (flagConnect)
             {
                 labelStatus.text = "Сonnected";
-                labelStatus.color = "green"
+                textAreaLog.append(Qt.formatTime(new Date(), "hh:mm:ss") +": " + "Pi подключен по TCP")
+                labelStatus.color = '#8BC34A'
                 buttonCheckStatus.visible = true
 
             }
             else
             {
                 labelStatus.text = "Disconnected";
-                labelStatus.color = "red"
+                textAreaLog.append(Qt.formatTime(new Date(), "hh:mm:ss") +": " + "Pi отключен по TCP")
+                labelStatus.color = '#F44336'
                 buttonCheckStatus.visible = false
 
 
@@ -68,7 +130,6 @@ Window {
    {
       id: plotSpec
       flags:  Qt.Window //| Qt.WindowStaysOnBottomHint
-      color: "white"
       title: qsTr(qsTr("# SPEC"))
        width: 400
        height: 400
@@ -149,12 +210,44 @@ Window {
     }
 
 
+    FileDialog {
+        id: fileDialogPathOut
+        title: "Выбор директории"
+        folder: defaltFolderUrl
+        //fileMode: FileDialog.SaveFile
+        selectFolder: true
+        selectExisting: false
+        onAccepted: {
+            ////console.log("You chose: " + fileDialog.fileUrls)
+            var path = fileDialog.fileUrls.toString();
+            path = path.replace(/^(file:\/{3})/,"");
+            // unescape html codes like '%23' for '#'
+            var cleanPath = decodeURIComponent(path);
+            textInputFilePathOut.text  ="";
+            textInputFilePathOut.text = defaltFolderUrl + "/signalOutput.txt"
+            console.log(path,cleanPath)
+            visible = false
+        }
+        onRejected: {
+            ////console.log("Canceled")
+            visible = false
+        }
+        onFolderChanged: {
+
+             defaltFolderUrl = folder;
+
+        }
+        nameFilters: [ "Text files (*.txt)", "All files (*)" ]
+        //Component.onCompleted: visible = false
+    }
+
+
     Button {
         id: buttonConnect
         x: 23
-        y: 55
+        y: 46
         width: 117
-        height: 28
+        height: 45
         text: qsTr("Конект")
         font.pointSize: 9
         checkable: false
@@ -163,16 +256,26 @@ Window {
         visible: true
         onClicked: {
 
-               appCore.tCPThread(textInputIP.text, textInputPort.text)
+            appCore.writeSettings(textInputIP.text, textInputPort.text,spinBoxFreq.value,spinBoxFreqFd.value,
+                                  radioButtonTrans.checked?qsTr("TX"):qsTr("RX"), sliderNormalizedGain.value,
+                                  spinBoxOverSampling.value,  radioButton1Chan.checked?0:1, radioButton1ChanRec.checked?0:1,
+                                  textInputFilePath.text, textInputFilePathOut.text, spinBoxTimeToPlay.value,
+                                  spinBoxTimesToRec.value, spinBoxOutputSize.value,
+                                  spinBoxtx_streamfifoSize.value, spinBoxtx_streamthroughputVsLatency.value,
+                                  spinBoxrx_streamfifoSize.value, spinBoxrx_streamthroughputVsLatency.value,
+                                  radioButtonFMT32.cheked?"float32":"int12",(window.Material.theme === Material.Light)?"Light":"Dark")
+
+
+            appCore.tCPThread(textInputIP.text, textInputPort.text, )
 
             }
     }
 
     Button {
         id: buttonSend
-        x: 157
+        x: 126
         y: 540
-        width: 159
+        width: 190
         height: 44
 
         text: qsTr("Послать команду")
@@ -182,13 +285,13 @@ Window {
         highlighted: true
         visible: true
         onClicked: {
+            cntrRec = 0;
             appCore.sendSomething2(textInputFilePath.text, checkBoxDefaultOutput.checked?qsTr(""):textInputFilePathOut.text, radioButtonTrans.checked?1:0,spinBoxFreq.value,
                                    spinBoxFreqFd.value,sliderNormalizedGain.value, spinBoxOverSampling.value, radioButton1Chan.checked?0:1,
                                    radioButton1ChanRec.checked?0:1,spinBoxTimeToPlay.value, spinBoxOutputSize.value,
                                    spinBoxtx_streamfifoSize.value, spinBoxtx_streamthroughputVsLatency.value,
                                    spinBoxrx_streamfifoSize.value, spinBoxrx_streamthroughputVsLatency.value,
                                    radioButtonFMT32.cheked?"float32":"int12")
-
 
         }
     }
@@ -211,9 +314,9 @@ Window {
     Button {
         id: buttonDisconnect
         x: 157
-        y: 53
+        y: 46
         width: 139
-        height: 30
+        height: 45
 
         text: qsTr("Дисконект")
         font.pointSize: 9
@@ -307,12 +410,16 @@ Window {
     }
     Column
     {
-        x: 365
-        y: 37
+        x: 338
+        y: 11
+        width: 70
+        height: 108
         RadioButton {
             id: radioButtonTrans
         x: 34
         y: 352
+        width: 73
+        height: 50
         text: qsTr("ПРД")
         checked: true
         font.pointSize: 9
@@ -322,6 +429,8 @@ Window {
         id: radioButtonRec
         x: 34
         y: 398
+        width: 73
+        height: 50
         text: qsTr("ПРМ")
         font.pointSize: 9
     }
@@ -352,8 +461,8 @@ Window {
 
     Label {
         id: label3
-        x: 349
-        y: 43
+        x: 327
+        y: 33
         width: 47
         height: 64
         text: qsTr("Режим работы:")
@@ -391,6 +500,7 @@ Window {
         x: 45
         y: 13
         width: 102
+        color: (window.Material.theme == Material.Dark)?"white":"black"
         height: 25
         text: qsTr("169.254.183.65")
         font.pixelSize: 12
@@ -398,6 +508,7 @@ Window {
         verticalAlignment: Text.AlignVCenter
         persistentSelection: true
         cursorVisible: false
+
     }
 
     Label {
@@ -417,6 +528,8 @@ Window {
         y: 13
         width: 44
         height: 25
+        color: (window.Material.theme == Material.Dark)?"white":"black"
+
         text: qsTr("4002")
         font.pixelSize: 12
         verticalAlignment: Text.AlignVCenter
@@ -428,13 +541,15 @@ Window {
         y: 123
         width: 457
         height: 461
-        color: "#ffffff"
-        border.width: 2
+        border.width: 1
+        color: "#00000000"
+
 
 
         Flickable {
             id: flickable
             anchors.fill: parent
+            anchors.bottomMargin: 0
             anchors.leftMargin: 0
             boundsMovement: Flickable.StopAtBounds
             boundsBehavior: Flickable.DragAndOvershootBounds
@@ -447,6 +562,7 @@ Window {
                 text:  "=======================================================\n"+Qt.formatTime(new Date(), "hh:mm:ss") +": " + "Старт работы программы"
                 readOnly: false
                 wrapMode: TextArea.Wrap
+                font.pointSize: 8
             }
 
             ScrollBar.vertical: ScrollBar { }
@@ -459,15 +575,15 @@ Window {
         y: 366
         width: 217
         height: 25
-        color: "#ffffff"
-        border.width: 2
+        color: "#00000000"
+        border.width: 1
 
         Button {
             id: buttonOpenFile
-            x: 216
-            y: 0
-            width: 45
-            height: 25
+            x: 220
+            y: -5
+            width: 41
+            height: 30
             text: qsTr("...")
             onClicked:
             {
@@ -482,6 +598,7 @@ Window {
         y: 368
         width: 199
         height: 23
+        color: (window.Material.theme == Material.Dark)?"white":"black"
         text: qsTr("D:\\signalInput.txt")
         wrapMode: Text.Wrap
         font.pixelSize: 12
@@ -577,15 +694,20 @@ Window {
         y: 441
         width: 217
         height: 25
-        color: "#ffffff"
-        border.width: 2
+        color: "#00000000"
+        border.width: 1
         Button {
             id: buttonOpenFileOut
-            x: 216
-            y: 0
-            width: 45
-            height: 25
+            x: 219
+            y: -6
+            width: 42
+            height: 31
             text: qsTr("...")
+            onClicked:
+            {
+                fileDialogPathOut.visible = true
+
+            }
         }
     }
 
@@ -596,10 +718,11 @@ Window {
         width: 199
         height: 23
         text: qsTr("D:\\signalOutput.txt")
+        color: (window.Material.theme == Material.Dark)?"white":"black"
         font.pixelSize: 12
         horizontalAlignment: Text.AlignLeft
         verticalAlignment: Text.AlignVCenter
-        wrapMode: Text.Wrap
+        wrapMode: Text.NoWrap
     }
 
     Label {
@@ -616,7 +739,7 @@ Window {
         y: 407
         checked: true
         width: 98
-        height: 17
+        height: 25
         text: qsTr("default")
     }
 
@@ -649,7 +772,7 @@ Window {
         id: checkBox
         x: 20
         y: 532
-        width: 153
+        width: 29
         height: 17
         text: qsTr("Проводить калибровки")
         font.pointSize: 6
@@ -716,10 +839,10 @@ Window {
 
     SpinBox {
         id: spinBoxTimeToPlay
-        x: 619
-        y: 79
-        width: 160
-        height: 28
+        x: 635
+        y: 46
+        width: 139
+        height: 37
         value: 10
         editable: true
         font.pointSize: 9
@@ -730,18 +853,20 @@ Window {
 
     Label {
         id: label16
-        x: 494
-        y: 86
+        x: 483
+        y: 57
+        width: 146
+        height: 18
         text: qsTr("Воспроизвродить, с")
         font.pointSize: 9
     }
 
     CheckBox {
         id: checkBoxAddSettings
-        x: 626
-        y: 41
-        width: 153
-        height: 17
+        x: 599
+        y: 11
+        width: 180
+        height: 29
         text: qsTr("Дополнительные настройки")
         display: AbstractButton.TextBesideIcon
         checked: false
@@ -805,64 +930,251 @@ Window {
     }
 
     Column {
-        x: 925
-        y: 271
+        x: 1089
+        y: 262
         visible: checkBoxAddSettings.checked?true:false
 
         RadioButton {
             id: radioButtonFMT32
             x: 34
             y: 352
+            height: 33
             text: qsTr("LMS_FMT_F32")
             visible: checkBoxAddSettings.checked?true:false
 
             checked: true
-            font.pointSize: 9
+            font.pointSize: 4
         }
 
         RadioButton {
             id: radioButtonFMTI12
             x: 34
             y: 398
+            width: 72
+            height: 30
             text: qsTr("LMS_FMT_I12")
             visible: checkBoxAddSettings.checked?true:false
 
-            font.pointSize: 9
+            font.pointSize: 4
         }
-    }
-
-    Label {
-        id: label10
-        x: 902
-        y: 279
-        width: 47
-        height: 64
-        text: qsTr("Формат данных")
-        visible: checkBoxAddSettings.checked?true:false
-
-        horizontalAlignment: Text.AlignHCenter
-        verticalAlignment: Text.AlignVCenter
-        wrapMode: Text.WordWrap
-        font.pointSize: 9
     }
 
     CheckBox {
         id: checkBoxshowSpec
-        x: 503
-        y: 41
-        width: 153
-        height: 17
+        x: 448
+        y: 11
+        width: 145
+        height: 30
+        opacity: 1
         text: qsTr("спектр")
+        autoRepeat: true
         checked: false
         display: AbstractButton.TextBesideIcon
         font.pointSize: 6
         onClicked:
         {
-                appCore.flagSpecSet(checked)
+            appCore.flagSpecSet(checked,checkBoxshowSpecAnalyser.checked, spinBoxTimesToRec.value)
         }
+    }
+
+    CheckBox {
+        id: checkBoxshowSpecAnalyser
+        x: 448
+        y: 89
+        width: 165
+        height: 30
+        visible: true
+        text: qsTr("Считывать, раз")
+        checked: false
+        display: AbstractButton.TextBesideIcon
+        font.pointSize: 8
+        onClicked:
+        {
+            appCore.flagSpecSet(checkBoxshowSpec.checked,checked,spinBoxTimesToRec.value)
+        }
+    }
+
+    SpinBox {
+        id: spinBoxTimesToRec
+        x: 635
+        y: 85
+        width: 139
+        height: 34
+        editable: true
+        stepSize: 1
+        value: 50
+        font.pointSize: 9
+        to: 1000
+        from: 1
+        onValueChanged:         {
+            appCore.flagSpecSet(checkBoxshowSpec.checked,checkBoxshowSpecAnalyser.checked, value)
+        }
+    }
+
+    Label {
+        id: label11
+        x: 483
+        y: 13
+        width: 137
+        height: 25
+        text: qsTr("Показывать спектр")
+        verticalAlignment: Text.AlignVCenter
+        font.pointSize: 9
+    }
+
+    Label {
+        id: label19
+        x: 483
+        y: 89
+        width: 44
+        height: 25
+        text: qsTr("Записывать в цикле, раз")
+        verticalAlignment: Text.AlignVCenter
+        font.pointSize: 9
+    }
+
+    Label {
+        id: label20
+        x: 635
+        y: 13
+        width: 155
+        height: 25
+        text: qsTr("Дополнительные настройки")
+        verticalAlignment: Text.AlignVCenter
+        font.pointSize: 9
+    }
+
+    Label {
+        id: label21
+        x: 250
+        y: 407
+        width: 47
+        height: 25
+        text: qsTr("дефолт")
+        verticalAlignment: Text.AlignVCenter
+        font.pointSize: 9
+    }
+
+    Label {
+        id: label22
+        x: 52
+        y: 532
+        width: 47
+        height: 25
+        text: qsTr("калибровки")
+        verticalAlignment: Text.AlignVCenter
+        font.pointSize: 9
+    }
+
+    Column {
+        x: 1097
+        y: 510
+        width: 103
+        height: 90
+        visible: checkBoxAddSettings.checked?true:false
+
+        RadioButton {
+            id: radioButtonLight
+            x: 34
+            y: 352
+            text: qsTr("Ligth")
+            checked: true
+            font.pointSize: 9
+            onClicked:
+            {
+                window.Material.theme =  Material.Light
+                window.Material.accent = Material.BlueGrey
+            }
+        }
+
+        RadioButton {
+            id: radioButtonDark
+            x: 34
+            y: 398
+            text: qsTr("Dark")
+            font.pointSize: 9
+            onClicked:
+            {
+                window.Material.theme =  Material.Dark
+                window.Material.accent = Material.Orange
+            }
+        }
+    }
+
+    Rectangle {
+        id: rectangle_dop
+        x: 794
+        y: 262
+        width: 330
+        height: 322
+        border.width: 1
+        color: "#00000000"
+        visible: checkBoxAddSettings.checked?true:false
+
+
+        Flickable {
+            id: flickableDop
+            anchors.fill: parent
+            anchors.bottomMargin: 0
+            anchors.leftMargin: 0
+            boundsMovement: Flickable.StopAtBounds
+            boundsBehavior: Flickable.DragAndOvershootBounds
+            TextArea.flickable: TextArea {
+                id: textAreaLogDop
+                x: 0
+                y: 0
+                width: 338
+                height: 322
+                text:  "=========================================\n"
+                readOnly: false
+                wrapMode: TextArea.Wrap
+                font.pointSize: 8
+            }
+
+            ScrollBar.vertical: ScrollBar { }
+        }
+    }
+
+    Label {
+        id: label10
+        x: 1137
+        y: 504
+        text: qsTr("Тема")
+        visible: checkBoxAddSettings.checked?true:false
+
+    }
+
+    Label {
+        id: label23
+        x: 322
+        y: 103
+        width: 27
+        height: 25
+        text: qsTr("Логер")
+        verticalAlignment: Text.AlignVCenter
+        font.pointSize: 9
+    }
+
+    Label {
+        id: label24
+        x: 794
+        y: 240
+        width: 27
+        height: 25
+        visible: checkBoxAddSettings.checked?true:false
+
+        text: qsTr("Логер сообщений сервера")
+        verticalAlignment: Text.AlignVCenter
+        font.pointSize: 9
     }
 }
 
 
 
 
+
+/*##^##
+Designer {
+    D{i:0;formeditorZoom:1.25}
+}
+##^##*/

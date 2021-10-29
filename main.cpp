@@ -3,14 +3,14 @@
 
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
-
+#include <QIcon>
 #include "appcore.h"
 
 int main(int argc, char *argv[])
 {
     QCoreApplication::setAttribute(Qt::AA_EnableHighDpiScaling);
     QApplication app(argc, argv);
-    //app.setWindowIcon(QIcon("src/settings.png"));
+    app.setWindowIcon(QIcon("src/dev.ico"));
 
     QQmlApplicationEngine engine;
 

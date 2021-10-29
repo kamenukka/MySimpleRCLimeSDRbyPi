@@ -45,6 +45,8 @@ public:
     int counter;
     int Number = -10;
     const char* stringFromServer;
+    const char* stringFromServerTMP;
+
     QString IP;
     QString port;
     QString FilePath;
@@ -53,6 +55,7 @@ public:
     int samplesCountToRecieve;
     QString OutName;
     bool useDefaultOutName = false;
+    int numOfCycles = 1;
 
 
 
@@ -66,7 +69,9 @@ signals:
     void endOfSend();
     void sendMessageFromServer();
     void sendMessageErrorFromServer();
+    void sendMessageBreakFromServer();
     void sendMessageSpec();
+    void sendMessageDopFromServer(QString mes);
 
 
 

@@ -9,6 +9,8 @@
 #include <QSharedPointer>
 #include <QMap>
 #include <QDir>
+#include <QSettings>
+
 
 
 class AppCore : public QObject
@@ -24,6 +26,11 @@ signals:
     void sendToQmlMsg(bool flagConnect);
     void  sendCounterToQml(int counter);
     void  specValueChanged(QVariantList arr2spec);
+    void sendToQmlMsgCustom(QString mess);
+    void sendToQmlSettings(QString IP, QString port, double freq, double Fd,  QString mode, double Gain, double oversampling, short NumChanTx,
+                           short NumChanRx, QString nameIn, QString nameOut, int SecondsToPlay, int NumOfCyclesRec, int LenArrayToRec,
+                           int txfifosize, int txThVslat, int rxfifosize, int rxThVslat, QString fmt, QString theme);
+    void sendToDopQML(QString stringFromServer);
 
 
 
@@ -36,6 +43,12 @@ public slots:
     void SendSomething();
     void sendMessages();
     void sendSpec();
+    void sendBreak();
+    void writeSettings(QString IP, QString port, double freq, double Fd,  QString mode, double Gain, double oversampling, short NumChanTx,
+                       short NumChanRx, QString nameIn, QString nameOut, int SecondsToPlay, int NumOfCyclesRec, int LenArrayToRec,
+                       int txfifosize, int txThVslat, int rxfifosize, int rxThVslat, QString fmt, QString theme);
+    bool readSettings();
+    void SendSomethingToDop(QString mes);
     void sendSomething2(QString, QString,int, int,
                         int, int, int, int,
                         int, int, int,
@@ -43,7 +56,7 @@ public slots:
                         int, int,
                         QString);
     void getSomeFlag();
-    void flagSpecSet(bool);
+    void flagSpecSet(bool, bool, int);
 
 
 private:
@@ -52,6 +65,7 @@ private:
     float longPRD;
     float latPRM;
     float longPRM;
+    int TimesToRec = 1;
     QVariantList array2display;
     QVariantList array2init;
     QVariantList array2displayMap;
@@ -64,6 +78,7 @@ private:
     int counter = 0;
     int counterFinishedWorkers = 0;
     bool flagSpec = false;
+    bool SpecAnalyzerMode = false;
     struct Point
     {
         QString Name;
@@ -101,7 +116,7 @@ private:
     float angleTo = 360;
     float radius_small=10e3;
     float radius_big = 100e3;
-
+    QString IP, port;
 
 
 };

@@ -4,5 +4,7 @@
         <file>src/settings.png</file>
         <file>src/help.png</file>
         <file>PlotSpec.qml</file>
+		<file>src/dev.ico</file>
+				<file>qtquickcontrols2.conf</file>
     </qresource>
 </RCC>

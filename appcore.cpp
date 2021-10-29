@@ -30,8 +30,13 @@ AppCore::AppCore(QObject *parent) : QObject(parent)
     //connect(&dataFortreadTCP, SIGNAL(sendMessage(QVariantList)),  this, SLOT(SendSomething(QVariantList)), Qt::DirectConnection);
     connect(&dataFortreadTCP,  &TreadObject::endOfSend,  this, &AppCore::getSomeFlag, Qt::DirectConnection);
     connect(&dataFortreadTCP,  &TreadObject::sendMessageFromServer,  this, &AppCore::SendSomething, Qt::DirectConnection);
+    connect(&dataFortreadTCP,  SIGNAL(sendMessageDopFromServer(QString)),  this, SLOT(SendSomethingToDop(QString)), Qt::DirectConnection);
     connect(&dataFortreadTCP,  &TreadObject::sendMessageErrorFromServer,  this, &AppCore::sendMessages, Qt::DirectConnection);
+    connect(&dataFortreadTCP,  &TreadObject::sendMessageBreakFromServer,  this, &AppCore::sendBreak, Qt::DirectConnection);
+
     connect(&dataFortreadTCP,  &TreadObject::sendMessageSpec,  this, &AppCore::sendSpec, Qt::DirectConnection);
+
+
 
     dataFortreadTCP.moveToThread(&TCPthread);    // Передаём объекты в соответствующие потоки
 
@@ -47,6 +52,116 @@ AppCore::AppCore(QObject *parent) : QObject(parent)
 }
 
 
+void AppCore::writeSettings(QString IP, QString port, double freq, double Fd,  QString mode, double Gain, double oversampling, short NumChanTx,
+                            short NumChanRx, QString nameIn, QString nameOut, int SecondsToPlay, int NumOfCyclesRec, int LenArrayToRec,
+                            int txfifosize, int txThVslat, int rxfifosize, int rxThVslat, QString fmt,QString theme)
+{
+    QSettings* settings = new QSettings(QDir::currentPath() + "/config.ini", QSettings::IniFormat);
+    settings->clear();
+    settings->beginGroup("IPconfig");
+    settings->setValue("IP",IP);
+    settings->setValue("port",port);
+    settings->endGroup();
+    settings->beginGroup("MainLimeSettings");
+    settings->setValue("CentralFrequency",freq);
+    settings->setValue("SampleRate",Fd);
+    settings->setValue("Mode",mode);
+    settings->setValue("TXGain",Gain);
+    settings->setValue("RXOversampling",oversampling);
+    settings->setValue("TXNumberOfChannel",NumChanTx);
+    settings->setValue("RXNumberOfChannel",NumChanRx);
+    settings->setValue("TXSecondsToPlay",SecondsToPlay);
+    settings->setValue("RXNumberCyclesToRecord",NumOfCyclesRec);
+    settings->setValue("RXLengthOfArrayToRecord",LenArrayToRec);
+    settings->setValue("FormatOfData",fmt);
+    settings->endGroup();
+    settings->beginGroup("AdditionalLimeSettings");
+    settings->setValue("TXstreamFIFOsize",txfifosize);
+    settings->setValue("TXstreamThroughputVslatency",txThVslat);
+    settings->setValue("RXstreamFIFOsize",rxfifosize);
+    settings->setValue("RXstreamThroughputVslatency",rxThVslat);
+    settings->endGroup();
+    settings->beginGroup("SettingsOfFiles");
+    settings->setValue("CustomNameOfInFiles",nameIn);
+    settings->setValue("CustomNameOfOutFiles",nameOut);
+    settings->setValue("DefaultNameOfOutFiles",nameOut);
+    settings->endGroup();
+    settings->beginGroup("SettingsOfGUI");
+    settings->setValue("Theme",theme);
+    settings->endGroup();
+    settings->sync();
+}
+
+bool AppCore::readSettings()
+{
+    bool res = false;
+    if (QFile(QDir::currentPath() + "/config.ini").exists())
+    {
+
+        res = true;
+        QString IP;
+        QString port;
+        double freq;
+        double Fd;
+        QString mode;
+        double Gain;
+        double oversampling;
+        short NumChanTx;
+        short NumChanRx;
+        QString nameIn;
+        QString nameOut;
+        int SecondsToPlay;
+        int NumOfCyclesRec;
+        int LenArrayToRec;
+        int txfifosize;
+        int txThVslat;
+        int rxfifosize;
+        int rxThVslat;
+        QString fmt;
+
+        QSettings* settings = new QSettings(QDir::currentPath() + "/config.ini", QSettings::IniFormat);
+        settings->beginGroup("IPconfig");
+        IP = settings->value("IP").toString();
+        port = settings->value("port").toString();
+        settings->endGroup();
+        settings->beginGroup("MainLimeSettings");
+        freq = settings->value("CentralFrequency").toInt();
+        Fd = settings->value("SampleRate").toInt();
+        mode = settings->value("Mode").toString();
+        Gain = settings->value("TXGain").toInt();
+        oversampling = settings->value("RXOversampling").toInt();
+        NumChanTx = settings->value("TXNumberOfChannel").toInt();
+        NumChanRx = settings->value("RXNumberOfChannel").toInt();
+        SecondsToPlay = settings->value("TXSecondsToPlay").toInt();
+        NumOfCyclesRec = settings->value("RXNumberCyclesToRecord").toInt();
+        LenArrayToRec = settings->value("RXLengthOfArrayToRecord").toInt();
+        fmt = settings->value("FormatOfData",fmt).toString();
+        settings->endGroup();
+        settings->beginGroup("AdditionalLimeSettings");
+        txfifosize= settings->value("TXstreamFIFOsize").toInt();
+        txThVslat = settings->value("TXstreamThroughputVslatency").toInt();
+        rxfifosize = settings->value("RXstreamFIFOsize").toInt();
+        rxThVslat = settings->value("RXstreamThroughputVslatency").toInt();
+        settings->endGroup();
+        settings->beginGroup("SettingsOfFiles");
+        nameIn = settings->value("CustomNameOfInFiles").toString();
+        nameOut = settings->value("CustomNameOfOutFiles").toString();
+        QString nameDefault= settings->value("DefaultNameOfOutFiles").toString();
+        settings->endGroup();
+        settings->beginGroup("SettingsOfGUI");
+        QString theme = settings->value("Theme").toString();
+        settings->endGroup();
+        settings->sync();
+
+        emit sendToQmlSettings(IP, port, freq, Fd,   mode, Gain, oversampling, NumChanTx,
+                                NumChanRx,  nameIn,  nameOut,  SecondsToPlay,  NumOfCyclesRec,  LenArrayToRec,
+                                txfifosize,  txThVslat,  rxfifosize,  rxThVslat, fmt,theme);
+
+    }
+    return res;
+}
+
+
 
 void AppCore::init()
 {
@@ -54,13 +169,18 @@ void AppCore::init()
     FlagInit = true;
     Res = 0;
     emit sendToQml(FlagInit,Res,array2display);
+    if (!readSettings())
+        qDebug()<<"can't read settings";
 }
 
 
-void AppCore::tCPThread(QString IP,QString port)
+void AppCore::tCPThread(QString IP_,QString port_)
 {
-    dataFortreadTCP.IP = IP;
-    dataFortreadTCP.port = port;
+    dataFortreadTCP.IP = IP_;
+    dataFortreadTCP.port = port_;
+    IP = IP_;
+    port = port_;
+
     dataFortreadTCP.isServer = false;
     TCPthread.start();
     dataFortreadTCP.flagTCPIsActive = true;
@@ -86,11 +206,40 @@ void  AppCore::getSomeFlag()
     flagToSend = false;
 }
 
+
+void AppCore::SendSomethingToDop(QString stringFromServer)
+{
+    emit sendToDopQML(stringFromServer);
+}
+
+
 void AppCore::SendSomething()
 {
 //qDebug()<<"Trhtead send"<<dataFortreadTCP.stringFromServer;
+QString tmpString = dataFortreadTCP.stringFromServer;
+
+if (tmpString.contains("!Recieve"))
+{
+    if (tmpString.contains("Playing"))
+    {
+        tmpString = "!!Успешно отправил файл на Pi";
+    }
+
+}
+if (tmpString.contains("!Please check you SDR"))
+{
+    tmpString = "!!Проверь подключение LimeSDR к Pi";
+}
+if (tmpString.contains("End streaming with status0"))
+{
+    tmpString = "!!LimeSDR успешно завершил передачу";
+}
+if (tmpString.contains("End recording with status0"))
+{
+    tmpString = "!!LimeSDR успешно завершил прием";
+}
 array2display.clear();
-array2display.append(dataFortreadTCP.stringFromServer);
+array2display.append(tmpString);
 FlagInit = false;
 Res = 1;
 emit sendToQml(FlagInit,Res,array2display);
@@ -106,9 +255,23 @@ void AppCore::sendMessages()
 }
 
 
+void AppCore::sendBreak()
+{
+    tCPstopTCP();
+    emit sendToQmlMsgCustom("я хз что произошло");
+    dataFortreadTCP.IP = IP;
+    dataFortreadTCP.port = port;
+    dataFortreadTCP.isServer = false;
+    TCPthread.start();
+    dataFortreadTCP.flagTCPIsActive = true;
+    emit sendToQmlMsg(true);
+
+}
+
+
 QVariantList myFFT(QVariantList in,int NFFT)
 {
-    NFFT =(in.length()/2>8192)?8192:256;
+    NFFT =(in.length()/2>10000)?8192:256;
     complex *s_in = new complex[NFFT];
     double *out = new double[NFFT];
     complex *s_out = new complex[NFFT];
@@ -128,9 +291,10 @@ QVariantList myFFT(QVariantList in,int NFFT)
 
     QVariantList outArr;
     outArr.clear();
+    int numDiv = (NFFT==8192)?32:1;
     for (int i =0;i<NFFT;i++)
     {
-        if ((i%32)==0)
+        if ((i%numDiv)==0)
         {
             outArr.append(out[i]);
         }
@@ -143,9 +307,11 @@ QVariantList myFFT(QVariantList in,int NFFT)
    return outArr;
 }
 
-void AppCore::flagSpecSet(bool flg)
+void AppCore::flagSpecSet(bool flg, bool flg2, int TimesToRec_)
 {
     flagSpec = flg;
+    SpecAnalyzerMode = flg2;
+    TimesToRec = TimesToRec_;
 }
 
 
@@ -180,10 +346,14 @@ void AppCore::sendSomething2(QString fileName,QString fileNameOut, int Mode,
                              int rx_streamfifoSize, int rx_streamthroughputVsLatency,
                              QString FMT)
 {
+
+int numOfCycles = Mode?1:(SpecAnalyzerMode?TimesToRec:1);
+dataFortreadTCP.numOfCycles = numOfCycles;
+if (!dataFortreadTCP.flagReady)
+{
+
 dataFortreadTCP.arrayPoints.clear();
 QString line;
-
-qDebug()<<fileNameOut<<fileNameOut.isEmpty();
 if (fileNameOut.isEmpty())
 {
         dataFortreadTCP.OutName = "";
@@ -221,6 +391,7 @@ if (Mode)
        inputFile.close();
     }
 }
+int AlreadyOpened = 0;
 // Для первичной синхронизации передачи файла
 dataFortreadTCP.arrayPoints.append(float(1.0));
 dataFortreadTCP.arrayPoints.append(float(1.0));
@@ -243,6 +414,7 @@ dataFortreadTCP.arrayPoints.append(float(tx_streamthroughputVsLatency/100));
 dataFortreadTCP.arrayPoints.append(float(rx_streamfifoSize));
 dataFortreadTCP.arrayPoints.append(float(rx_streamthroughputVsLatency/100));
 (FMT=="float32")?dataFortreadTCP.arrayPoints.append(float(1)):dataFortreadTCP.arrayPoints.append(float(0)); //FMT
+dataFortreadTCP.arrayPoints.append(float(AlreadyOpened));
 
 
 dataFortreadTCP.samplesCountToRecieve = SizeOfRecArr;
@@ -269,6 +441,8 @@ dataFortreadTCP.flagReady = true;
 
 }
 }
+}
+
 
 void AppCore::client() {
 /* */

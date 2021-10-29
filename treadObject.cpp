@@ -179,10 +179,6 @@ void TreadObject::client() {
   std::string str = IP.toStdString();
   const char* p = str.c_str();
   ipStringToNumber(p,&HOST_IP);
-//  if (inet_ntop(AF_INET, &HOST_IP, "169.254.183.65", INET6_ADDRSTRLEN) == NULL) {
-//      perror("inet_ntop");
-//      exit(EXIT_FAILURE);
-//  }
 
   qDebug()<<HOST_IP<<port.toInt();
 
@@ -192,11 +188,6 @@ void TreadObject::client() {
   std::string str_ = my_qstring.toStdString();
   const char* tmp = str_.c_str();
   status = client.connectTo(HOST_IP, port.toInt());
-  /*connected = 0,
-  err_socket_init = 1,
-  err_socket_bind = 2,
-  err_socket_connect = 3,
-  disconnected = 4*/
   if (int(status))
   {
       flagTCPIsActive = false;
@@ -220,7 +211,13 @@ void TreadObject::client() {
 
 
       if (flagReady){
+          int cntCycles = 0;
+          while (cntCycles<numOfCycles)
+          {
+              qDebug()<<"start of Cycles";
           int cntr=0;
+          if (cntCycles>0)
+              arrayPoints[21] = 1;
           int sizeOfTransferBuffer = arrayPoints.length()*sizeof(float);
           if ((sizeOfTransferBuffer%TRANSFER_BLOCK)!=0)
               sizeOfTransferBuffer = (int(sizeOfTransferBuffer/TRANSFER_BLOCK)+1)*TRANSFER_BLOCK;
@@ -232,7 +229,7 @@ void TreadObject::client() {
                   arrayToTransfer[j*sizeof(float)+k]=bytes[k];
           }
           //qDebug()<<"sizeOfTransferBuffer"<<sizeOfTransferBuffer<<"arrayPoints.length()"<<arrayPoints.length();
-          arrayPoints.clear();
+//          arrayPoints.clear();
           cntr = ((sizeOfTransferBuffer%TRANSFER_BLOCK)!=0)?(int(sizeOfTransferBuffer/TRANSFER_BLOCK)+1):(int(sizeOfTransferBuffer/TRANSFER_BLOCK));
 
           //client.sendData(arrayToTransfer,  sizeBuff);
@@ -243,31 +240,43 @@ void TreadObject::client() {
               tmp = str_.c_str();
               client.sendData(arrayToTransfer +TRANSFER_BLOCK*i, TRANSFER_BLOCK);
           }
-
           DataBuffer data = client.loadData();
           stringFromServer = (const char*)data.data_ptr;
+          emit sendMessageDopFromServer(QString(stringFromServer));
           emit sendMessageFromServer();
+          QString str2regtr = QString(stringFromServer);
 
           DataBuffer data_ = client.loadData();
           stringFromServer = (const char*)data_.data_ptr;
+          emit sendMessageDopFromServer(QString(stringFromServer));
+
           emit sendMessageFromServer();
 
-            QString str2reg = QString(stringFromServer);
-            QRegExp rx("Server Up with send Data (\\d+)(\\s*) bloks");
-            int pos = rx.indexIn(str2reg);
+          QString str2reg = QString(stringFromServer);
+          QRegExp rx("!Server Up with send Data (\\d+)(\\s*) bloks");
+          int pos = rx.indexIn(str2reg);
+
             QStringList list = rx.capturedTexts();
              int NumOfBlocks = 0;
             if (!list.isEmpty())
             {
                 NumOfBlocks = list[1].toInt();
-                qDebug()<<list<<list[1]<<NumOfBlocks;
             }
 
           int cntrFloatSymbols = 0;
           for (int cntrLoopRec = 0;cntrLoopRec<NumOfBlocks;cntrLoopRec++)
           {
+              if (int(client.getStatus()))
+              {
+                  flagTCPIsActive = false;
+                  emit sendMessageErrorFromServer();
+              }
+          try
+           {
           DataBuffer data__ = client.loadData();
-          //qDebug()<<"data__"<<data__.size<<"bytes";
+
+          if (data__.size!=1024)
+              throw 1;
           if (data__.size)
           {
           for (int k=0;k<1024/sizeof(int16_t);k++)
@@ -281,17 +290,27 @@ void TreadObject::client() {
                         }
 
           }
-//          for (int k=0;k<1e3;k++)
-//          {
-//            asm("nop");
-//          }
+          for (int k=0;k<1e3;k++)
+          {
+            asm("nop");
           }
-          qDebug()<<"Recieve data block "<<cntrLoopRec;
+          }
+          qDebug()<<"Recieve data block "<<cntrLoopRec<<"  data__.size "<<data__.size << "bytes";
+          }
+              catch(...)
+              {
+                  qDebug()<<"Recieve data block "<<cntrLoopRec<<"  data__.size ???";
+                  flagTCPIsActive = false;
+                  emit sendMessageErrorFromServer();
+                  emit sendMessageBreakFromServer();
+
+                  break;
+              }
           }
 
           if (NumOfBlocks)
           {
-              stringFromServer = "!Принял файл, записанный Lime";
+              stringFromServer = "!!Принял файл, записанный Lime";
               emit sendMessageFromServer();
 //              QString OutName;
 //              bool useDefaultOutName = false;
@@ -304,7 +323,6 @@ void TreadObject::client() {
                       dir.mkdir(".");
                   }
                 filenameOutD = QDir::currentPath() + "/res/DataOutput-" +cd.toString("dd-MM-yyyy") +"-" + ct.toString("HH-mm-ss") +  ".txt";
-                qDebug()<<filenameOutD;
                }
                else {
                     filenameOutD = OutName;
@@ -316,7 +334,7 @@ void TreadObject::client() {
                   {
                   stream << rec_buffer[k] << endl;
                   }
-                  stringFromServer = "!Записал файл на диск";
+                  stringFromServer = "!!Записал файл на диск";
                   emit sendMessageFromServer();
 
               }
@@ -333,13 +351,18 @@ void TreadObject::client() {
           {
               DataBuffer data_ = client.loadData();
               stringFromServer = (const char*)data_.data_ptr;
+              emit sendMessageDopFromServer(QString(stringFromServer));
+
               emit sendMessageFromServer();
           }
-          flagReady = false;
           emit endOfSend();
+          cntCycles++;
+          qDebug()<<cntCycles<<"from"<<numOfCycles;
 
       }
+          flagReady = false;
 
+      }
   }
 
   //std::this_thread::sleep_for(5s);
